@@ -8,6 +8,8 @@ Import-Module "$PSScriptRoot\..\ws2022-performance-diagnostics.psm1"
 # Funzione principale per orchestrare la raccolta, analisi ed esportazione dei dati
 function Main {
 
+    # Importa le impostazioni dal file dati
+    $settings = Import-PowerShellDataFile "$PSScriptRoot/../config/settings.psd1"
 
     # Importa gli script necessari
     . "$PSScriptRoot/collectors/services.ps1"
@@ -73,12 +75,13 @@ function Main {
     Write-Output "\n--- Vitals raccolti e salvati in vitals-full.json ---"
     $fullVitals | Format-List
 
-    # Definisci soglie di esempio
+
+    # Usa le soglie dal file di configurazione
     $thresholds = @{
-        "CPU" = 80
-        "Memoria" = 80
-        "Disco" = 90
-        "ContextSwitch" = 2000
+        "CPU" = $settings.Thresholds.CPU.Warning
+        "Memoria" = $settings.Thresholds.Memory.Warning
+        "Disco" = $settings.Thresholds.Disk.Warning
+        "ContextSwitch" = $settings.Thresholds.ContextSwitch.Warning
     }
 
     # Prepara le metriche per l'analisi
@@ -95,10 +98,16 @@ function Main {
     # Genera un riepilogo
     $summary = Generate-Summary -CpuData $cpuData -MemoryData $memoryData -DiskData $diskData -ContextSwitchData $contextSwitchData
 
-    # Esporta i risultati
-    Export-CsvData -FilePath "$PSScriptRoot/../performance_data.csv" -Data @($summary)
-    Export-PerformanceDataToJson -PerformanceData $summary -OutputPath "$PSScriptRoot/../performance_data.json"
-    Log-PerformanceEvent -Message "Raccolta dati di performance completata con successo."
+    # Esporta i risultati in base alle opzioni di configurazione
+    if ($settings.ExportOptions.ExportToCSV) {
+        Export-CsvData -FilePath "$PSScriptRoot/../performance_data.csv" -Data @($summary)
+    }
+    if ($settings.ExportOptions.ExportToJSON) {
+        Export-PerformanceDataToJson -PerformanceData $summary -OutputPath "$PSScriptRoot/../performance_data.json"
+    }
+    if ($settings.ExportOptions.LogToEventLog) {
+        Log-PerformanceEvent -Message "Raccolta dati di performance completata con successo."
+    }
 }
 
 # Eseguire la funzione principale

@@ -3,8 +3,9 @@
 # Questo script genera un riepilogo delle informazioni raccolte e analizzate
 # per identificare eventuali problemi di performance legati a disco, processore, memoria e context switch.
 
-# Importa i moduli necessari
-Import-Module "$PSScriptRoot\..\config\settings.psd1"
+
+# Carica le impostazioni dal file dati (non modulo!)
+$settings = Import-PowerShellDataFile "$PSScriptRoot\..\config\settings.psd1"
 
 # Funzione per generare il riepilogo
 function Generate-Summary {
@@ -45,7 +46,9 @@ $memorySummary
 $diskSummary
 
 $contextSwitchSummary
-"@
+    "@
+
+    return $finalSummary
 
     return $finalSummary
 }
