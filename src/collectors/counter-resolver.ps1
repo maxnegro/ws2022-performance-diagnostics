@@ -34,9 +34,14 @@ function Resolve-PerfCounterPath {
             continue
         }
 
-        $paths = @($matchedSet.PathsWithInstances + $matchedSet.Paths)
-
         foreach ($counterCandidate in $CounterCandidates) {
+            if ($Instance -eq '*') {
+                # Restituisci path wildcard, es: \\Set(*)\Contatore
+                return "\\$($matchedSet.CounterSetName)(*)\$counterCandidate"
+            }
+
+            $paths = @($matchedSet.PathsWithInstances + $matchedSet.Paths)
+
             $exactPath = $paths | Where-Object {
                 $_ -imatch "^\\\\$([regex]::Escape($matchedSet.CounterSetName))\\\($([regex]::Escape($Instance))\\\)\\$([regex]::Escape($counterCandidate))$"
             } | Select-Object -First 1

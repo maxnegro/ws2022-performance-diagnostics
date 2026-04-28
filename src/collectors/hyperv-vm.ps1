@@ -12,29 +12,27 @@ function Get-HyperVVMVitals {
     $results = @()
     $hostWaitTime = $null
     $counterSamples = $null
+    $vcpuWaitTimes = @()
     try {
-        . "$PSScriptRoot/counter-resolver.ps1"
-        $counterSetCandidates = @(
-            'Hyper-V Hypervisor Virtual Processor',
-            'Processore virtuale Hyper-V Hypervisor'
-        )
-        $counterCandidates = @(
-            'CPU Wait Time Per Dispatch',
-            'Tempo di attesa CPU per dispatch'
-        )
-        $counterPath = Resolve-PerfCounterPath -CounterSetCandidates $counterSetCandidates -CounterCandidates $counterCandidates -Instance '*'
-        if ($null -ne $counterPath) {
-            $counters = Get-Counter -Counter $counterPath -ErrorAction SilentlyContinue
-            if ($counters.CounterSamples) {
-                $counterSamples = $counters.CounterSamples
-                # Valore _total host
-                $totalSample = $counterSamples | Where-Object { $_.InstanceName -eq '_total' } | Select-Object -First 1
-                if ($null -ne $totalSample) {
-                    $hostWaitTime = $totalSample.CookedValue
-                } else {
-                    Write-Warning "[HyperV] Nessun valore _total per CPUWaitTimePerDispatch trovato (host)."
+        # Raccolta diretta di tutti i valori vCPU wait time
+        $vcpuCounter = Get-Counter -Counter "\\Hyper-V Hypervisor Virtual Processor(*)\\CPU Wait Time Per Dispatch" -ErrorAction SilentlyContinue
+        if ($vcpuCounter.CounterSamples) {
+            $vcpuWaitTimes = $vcpuCounter.CounterSamples | ForEach-Object {
+                [PSCustomObject]@{
+                    InstanceName = $_.InstanceName
+                    Value = $_.CookedValue
                 }
             }
+            # Valore _total host
+            $totalSample = $vcpuCounter.CounterSamples | Where-Object { $_.InstanceName -eq '_total' } | Select-Object -First 1
+            if ($null -ne $totalSample) {
+                $hostWaitTime = $totalSample.CookedValue
+            } else {
+                Write-Warning "[HyperV] Nessun valore _total per CPUWaitTimePerDispatch trovato (host)."
+            }
+            $counterSamples = $vcpuCounter.CounterSamples
+        } else {
+            Write-Warning "[HyperV] Nessun CounterSamples trovato per Hyper-V Hypervisor Virtual Processor"
         }
     } catch {}
 
@@ -70,6 +68,7 @@ function Get-HyperVVMVitals {
     return [PSCustomObject]@{
         HostCPUWaitTimePerDispatch = $hostWaitTime
         VMs = $results
+        VCPUWaitTimes = $vcpuWaitTimes
     }
 }
 
