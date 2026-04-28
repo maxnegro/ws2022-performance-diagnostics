@@ -64,12 +64,14 @@ function Main {
     $topProcesses = Get-TopProcesses
     $networkInfo = Get-NetworkInfo
 
-    # Raccogliere vitals delle VM Hyper-V se host Hyper-V
+    # Raccogliere vitals e integration services delle VM Hyper-V se host Hyper-V
     $hypervService = Get-Service -Name vmms -ErrorAction SilentlyContinue
     $hypervVMVitals = $null
+    $hypervVMIntegrationServices = $null
     if ($null -ne $hypervService -and $hypervService.Status -eq 'Running') {
         . "$PSScriptRoot/collectors/hyperv-vm.ps1"
         $hypervVMVitals = Get-HyperVVMVitals
+        $hypervVMIntegrationServices = Get-HyperVVMIntegrationServices
     }
 
 
@@ -87,16 +89,29 @@ function Main {
         Events = $recentEvents
         Processes = $topProcesses
         Network = $networkInfo
-        HyperV = $hypervVMVitals
+        HyperV = [PSCustomObject]@{
+            Vitals = $hypervVMVitals
+            IntegrationServices = $hypervVMIntegrationServices
+        }
         Uptime = $uptime.ToString()
         LastBootUpTime = $lastBoot
         PerfCounterResetTimestamp = $perfCounterReset
     }
 
     # Output tabellare e serializzazione
-    $fullVitals | ConvertTo-Json -Depth 6 | Out-File "$PSScriptRoot/../vitals-full.json" -Encoding UTF8
+    $fullVitals | ConvertTo-Json -Depth 10 | Out-File "$PSScriptRoot/../vitals-full.json" -Encoding UTF8
     Write-Output "\n--- Vitals raccolti e salvati in vitals-full.json ---"
     $fullVitals | Format-List
+
+    # Esporta anche i dati Hyper-V in file separati se presenti
+    if ($null -ne $hypervVMVitals -and $hypervVMVitals.Count -gt 0) {
+        $hypervVMVitals | ConvertTo-Json -Depth 6 | Out-File "$PSScriptRoot/../hyperv-vitals.json" -Encoding UTF8
+        $hypervVMVitals | Export-Csv -Path "$PSScriptRoot/../hyperv-vitals.csv" -NoTypeInformation -Encoding UTF8
+    }
+    if ($null -ne $hypervVMIntegrationServices -and $hypervVMIntegrationServices.Count -gt 0) {
+        $hypervVMIntegrationServices | ConvertTo-Json -Depth 6 | Out-File "$PSScriptRoot/../hyperv-integration-services.json" -Encoding UTF8
+        $hypervVMIntegrationServices | Export-Csv -Path "$PSScriptRoot/../hyperv-integration-services.csv" -NoTypeInformation -Encoding UTF8
+    }
 
 
     # Usa le soglie dal file di configurazione

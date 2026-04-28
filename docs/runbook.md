@@ -23,6 +23,7 @@ Questo runbook fornisce istruzioni dettagliate su come utilizzare il progetto di
    ```
 
 ## Utilizzo
+
 ### Raccolta Dati
 Per raccogliere informazioni sulle prestazioni, eseguire il file principale:
 ```powershell
@@ -30,11 +31,20 @@ Per raccogliere informazioni sulle prestazioni, eseguire il file principale:
 ```
 Questo script orchestrerà la raccolta dei dati utilizzando i vari collector.
 
+Se il sistema è un host Hyper-V, verranno raccolti e salvati automaticamente anche:
+- I "vitals" delle VM Hyper-V (stato, CPU, memoria, uptime, ecc.)
+- I dettagli dei servizi di integrazione di ciascuna VM (Integration Services)
+
 ### Analisi Dati
 Dopo la raccolta, i dati verranno analizzati automaticamente. I risultati saranno disponibili nel formato specificato (CSV, JSON, o registrati nel registro eventi).
 
 ### Esportazione Dati
-I dati raccolti possono essere esportati in diversi formati. Utilizzare i seguenti comandi per esportare i dati:
+I dati raccolti vengono esportati automaticamente nei seguenti file:
+- `vitals-full.json` (tutti i dati aggregati)
+- `hyperv-vitals.json` e `hyperv-vitals.csv` (info principali VM Hyper-V)
+- `hyperv-integration-services.json` e `hyperv-integration-services.csv` (stato servizi di integrazione per VM)
+
+Puoi anche esportare manualmente i dati usando gli exporter dedicati:
 - Per CSV:
   ```powershell
   .\src\exporters\csv.ps1

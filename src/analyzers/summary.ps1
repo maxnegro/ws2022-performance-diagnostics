@@ -44,7 +44,7 @@ function Generate-Summary {
     # Analizza i dati dei context switch
     $contextSwitchSummary = "Riepilogo Context Switch:`n$ContextSwitchData"
 
-    # Analizza uptime e reset contatori
+    # Analizza uptime e boot
     if ($PSBoundParameters.ContainsKey('Uptime')) {
         $uptimeSummary = "Uptime sistema: $Uptime"
     } else {
@@ -55,11 +55,6 @@ function Generate-Summary {
     } else {
         $lastBootSummary = "Ultimo avvio: N/D"
     }
-    if ($PSBoundParameters.ContainsKey('PerfCounterReset')) {
-        $perfCounterResetSummary = "Ultimo reset contatori: $PerfCounterReset"
-    } else {
-        $perfCounterResetSummary = "Ultimo reset contatori: N/D"
-    }
 
     # Combina tutti i riepiloghi
     $finalSummary = @"
@@ -67,7 +62,6 @@ Riepilogo delle Performance di Windows Server 2022
 
 $uptimeSummary
 $lastBootSummary
-$perfCounterResetSummary
 
 $cpuSummary
 

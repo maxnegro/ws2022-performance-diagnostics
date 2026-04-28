@@ -1,90 +1,28 @@
-
-Write-Host "[Collector] Inizio raccolta Hyper-V VM vitals"
-# Collector per raccogliere i "vitals" delle VM Hyper-V
-# Raccoglie CPU, RAM, dischi, coda IO, context switch, CPU ready/starving, ecc.
-. "$PSScriptRoot/counter-resolver.ps1"
+Write-Host "[Collector] Inizio raccolta Hyper-V VM vitals e Integration Services"
+# Collector per raccogliere i "vitals" delle VM Hyper-V e i servizi di integrazione
+# Raccoglie info principali delle VM tramite Get-VM e i servizi tramite Get-VMIntegrationService
 
 function Get-HyperVVMVitals {
-    # Verifica se Hyper-V è presente
     $hypervService = Get-Service -Name vmms -ErrorAction SilentlyContinue
     if ($null -eq $hypervService -or $hypervService.Status -ne 'Running') {
         Write-Verbose "Hyper-V non rilevato o non attivo su questo host."
         return @()
     }
+    $vms = Get-VM | Select-Object Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version
+    return $vms
+}
 
-    $vms = Get-VM
+function Get-HyperVVMIntegrationServices {
+    $hypervService = Get-Service -Name vmms -ErrorAction SilentlyContinue
+    if ($null -eq $hypervService -or $hypervService.Status -ne 'Running') {
+        Write-Verbose "Hyper-V non rilevato o non attivo su questo host."
+        return @()
+    }
     $results = @()
-
-    # Versione Integration Services dell'host
-    $hostISVer = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name 'ReleaseId','CurrentBuild','UBR' -ErrorAction SilentlyContinue)
-    $hostISVersion = if ($hostISVer) { "$($hostISVer.ReleaseId).$($hostISVer.CurrentBuild).$($hostISVer.UBR)" } else { $null }
-
+    $vms = Get-VM
     foreach ($vm in $vms) {
-        $vmName = $vm.Name
-        $vmId = $vm.VMId.Guid
-
-        # CPU usage (percentuale guest)
-        $cpuUsage = $vm.CPUUsage
-        # RAM assegnata e usata
-        $ramAssigned = $vm.MemoryAssigned / 1MB
-        $ramDemand = $vm.MemoryDemand / 1MB
-        $ramStatus = $vm.MemoryStatus
-
-        # Disco: utilizzo e queue length (se disponibili)
-        $diskCounters = Get-VMHardDiskDrive -VMName $vmName | ForEach-Object {
-            $path = $_.Path
-            $controller = $_.ControllerType
-            $location = $_.ControllerNumber
-            [PSCustomObject]@{
-                Path = $path
-                Controller = $controller
-                Location = $location
-                # Placeholder: aggiungi qui raccolta queue length se disponibile
-            }
-        }
-
-        # Context switch e altri parametri avanzati (se disponibili via performance counter)
-        $contextSwitch = Get-ResolvedCounterCookedValue `
-            -CounterSetCandidates @('Hyper-V Hypervisor Virtual Processor', 'Processore virtuale Hyper-V Hypervisor') `
-            -CounterCandidates @('Total Context Switches/sec', 'Commutazioni contesto totali/sec') `
-            -Instance $vmName
-
-        $cpuWait = Get-ResolvedCounterCookedValue `
-            -CounterSetCandidates @('Hyper-V Hypervisor Virtual Processor', 'Processore virtuale Hyper-V Hypervisor') `
-            -CounterCandidates @('CPU Wait Time Per Dispatch', 'Tempo di attesa CPU per dispatch') `
-            -Instance $vmName
-
-        $cpuStarving = Get-ResolvedCounterCookedValue `
-            -CounterSetCandidates @('Hyper-V Hypervisor Virtual Processor', 'Processore virtuale Hyper-V Hypervisor') `
-            -CounterCandidates @('Percent Guest Run Time', 'Percentuale tempo guest in esecuzione') `
-            -Instance $vmName
-
-        # Versione Integration Services guest (se disponibile)
-        $guestISVersion = $null
-        try {
-            $guestISVersion = ($vm | Get-VMIntegrationService | Where-Object { $_.Name -eq 'Guest Service Interface' }).Version
-        } catch {}
-
-        $isVersionMatch = $null
-        if ($hostISVersion -and $guestISVersion) {
-            $isVersionMatch = ($hostISVersion -eq $guestISVersion)
-        }
-
-        $results += [PSCustomObject]@{
-            VMName = $vmName
-            VMId = $vmId
-            CPUUsage = $cpuUsage
-            RAMAssignedMB = [math]::Round($ramAssigned,2)
-            RAMDemandMB = [math]::Round($ramDemand,2)
-            RAMStatus = $ramStatus
-            DiskInfo = $diskCounters
-            ContextSwitchesPerSec = $contextSwitch
-            CPUWaitTimePerDispatch = $cpuWait
-            PercentGuestRunTime = $cpuStarving
-            GuestISVersion = $guestISVersion
-            HostISVersion = $hostISVersion
-            ISVersionMatch = $isVersionMatch
-        }
+        $services = Get-VMIntegrationService -VMName $vm.Name | Select-Object VMName, Name, Enabled, PrimaryStatusDescription, SecondaryStatusDescription
+        $results += $services
     }
     return $results
 }
@@ -92,14 +30,16 @@ function Get-HyperVVMVitals {
 # Esegui la raccolta e mostra i dati
 $vmVitals = Get-HyperVVMVitals
 if ($vmVitals.Count -gt 0) {
-    $warnings = $vmVitals | Where-Object { $_.ISVersionMatch -eq $false -and $_.GuestISVersion -and $_.HostISVersion }
-    if ($warnings.Count -gt 0) {
-        Write-Warning "ATTENZIONE: Alcune VM hanno una versione degli Integration Services diversa da quella dell'host Hyper-V!"
-        $warnings | ForEach-Object {
-            Write-Warning ("VM: {0} - GuestIS: {1} - HostIS: {2}" -f $_.VMName, $_.GuestISVersion, $_.HostISVersion)
-        }
-    }
+    Write-Host "--- Vitals VM Hyper-V ---"
     $vmVitals | Format-Table -AutoSize
 } else {
     Write-Output "Nessuna VM Hyper-V trovata o Hyper-V non attivo."
+}
+
+$vmIntegrationServices = Get-HyperVVMIntegrationServices
+if ($vmIntegrationServices.Count -gt 0) {
+    Write-Host "--- Integration Services per VM ---"
+    $vmIntegrationServices | Format-Table -AutoSize
+} else {
+    Write-Output "Nessun servizio di integrazione trovato o Hyper-V non attivo."
 }

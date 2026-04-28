@@ -40,13 +40,23 @@ ws2022-performance-diagnostics
 
 Per installare il progetto, clonare il repository e assicurarsi di avere PowerShell installato su Windows Server 2022.
 
+
 ## Utilizzo
 
 Eseguire il file `main.ps1` per avviare la raccolta delle informazioni sulle prestazioni. I dati raccolti verranno analizzati e possono essere esportati nei formati desiderati.
 
+Oltre ai dati generali di sistema, CPU, memoria, disco, rete, ecc., se il sistema è un host Hyper-V verranno raccolti anche:
+- I "vitals" delle VM Hyper-V (stato, CPU, memoria, uptime, ecc.)
+- I dettagli dei servizi di integrazione di ciascuna VM (Integration Services)
+
+Questi dati vengono esportati automaticamente in:
+- `hyperv-vitals.json` e `hyperv-vitals.csv` (info principali VM)
+- `hyperv-integration-services.json` e `hyperv-integration-services.csv` (stato servizi di integrazione per VM)
+- `vitals-full.json` (tutti i dati aggregati)
+
 Se viene riportato un errore di policy si può provare con 
 
-``` powershell
+```powershell
 powershell -ExecutionPolicy Bypass -File ".\src\main.ps1"
 ```
 
