@@ -11,8 +11,8 @@ function Get-HyperVVMVitals {
     $vms = Get-VM
     $results = @()
     $hostWaitTime = $null
-    $counterSamples = $null
     $vcpuWaitTimes = @()
+    $vcpuWaitTimesByVM = @{}
     try {
         # Raccolta diretta di tutti i valori vCPU wait time
         $vcpuCounter = Get-Counter -Counter "\\Hyper-V Hypervisor Virtual Processor(*)\\CPU Wait Time Per Dispatch" -ErrorAction SilentlyContinue
@@ -23,14 +23,22 @@ function Get-HyperVVMVitals {
                     Value = $_.CookedValue
                 }
             }
-            # Valore _total host
-            $totalSample = $vcpuCounter.CounterSamples | Where-Object { $_.InstanceName -eq '_total' } | Select-Object -First 1
-            if ($null -ne $totalSample) {
-                $hostWaitTime = $totalSample.CookedValue
-            } else {
-                Write-Warning "[HyperV] Nessun valore _total per CPUWaitTimePerDispatch trovato (host)."
+            # Raggruppa per VM e vCPU
+            foreach ($sample in $vcpuCounter.CounterSamples) {
+                if ($sample.InstanceName -match "^(.*):hv vp (\\d+)$") {
+                    $vmName = $Matches[1]
+                    $vpNum = [int]$Matches[2]
+                    if (-not $vcpuWaitTimesByVM.ContainsKey($vmName)) {
+                        $vcpuWaitTimesByVM[$vmName] = @()
+                    }
+                    $vcpuWaitTimesByVM[$vmName] += [PSCustomObject]@{
+                        VirtualProcessor = $vpNum
+                        Value = $sample.CookedValue
+                    }
+                } elseif ($sample.InstanceName -eq '_total') {
+                    $hostWaitTime = $sample.CookedValue
+                }
             }
-            $counterSamples = $vcpuCounter.CounterSamples
         } else {
             Write-Warning "[HyperV] Nessun CounterSamples trovato per Hyper-V Hypervisor Virtual Processor"
         }
@@ -39,28 +47,8 @@ function Get-HyperVVMVitals {
     foreach ($vm in $vms) {
         $vital = $vm | Select-Object Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version, ProcessorCount
         $waitTimeDetails = @()
-        if ($counterSamples) {
-            Write-Host "[DEBUG] Nome VM PowerShell: '$($vm.Name)'"
-            Write-Host "[DEBUG] InstanceName disponibili: $($counterSamples.InstanceName -join ', ')"
-            $vmNamePattern = "^" + [regex]::Escape($vm.Name) + ":hv vp (\\d+)$"
-            $vmVpSamples = $counterSamples | Where-Object {
-                $_.InstanceName -match $vmNamePattern
-            }
-            foreach ($sample in $vmVpSamples) {
-                if ($sample.InstanceName -match $vmNamePattern) {
-                    $vpNum = [int]$Matches[1]
-                    $waitTimeDetails += [PSCustomObject]@{
-                        VirtualProcessor = $vpNum
-                        Value = $sample.CookedValue
-                        InstanceName = $sample.InstanceName
-                    }
-                }
-            }
-            if ($waitTimeDetails.Count -eq 0) {
-                Write-Warning "[HyperV] Nessun valore CPUWaitTimePerDispatch trovato per vCPU della VM $($vm.Name). Istanza disponibili: $($counterSamples.InstanceName -join ', ')"
-            }
-        } else {
-            Write-Warning "[HyperV] Contatore CPUWaitTimePerDispatch non trovato per la VM $($vm.Name)."
+        if ($vcpuWaitTimesByVM.ContainsKey($vm.Name)) {
+            $waitTimeDetails = $vcpuWaitTimesByVM[$vm.Name]
         }
         $vital | Add-Member -MemberType NoteProperty -Name CPUWaitTimePerDispatchDetails -Value $waitTimeDetails
         $results += $vital
@@ -69,6 +57,7 @@ function Get-HyperVVMVitals {
         HostCPUWaitTimePerDispatch = $hostWaitTime
         VMs = $results
         VCPUWaitTimes = $vcpuWaitTimes
+        VCPUWaitTimesByVM = $vcpuWaitTimesByVM
     }
 }
 
