@@ -95,8 +95,21 @@ function Main {
     # Analizza le performance rispetto alle soglie
     $analysisResults = Analyze-PerformanceThresholds -Metrics $metrics -Thresholds $thresholds
 
+
+    # Converte i dati in stringa leggibile
+    $cpuDataStr = $cpuData | Out-String
+    $memoryDataStr = $memoryData | Out-String
+    $diskDataStr = $diskData | Out-String
+    $contextSwitchDataStr = $contextSwitchData | Out-String
+
+    # Controllo dati nulli
+    if (-not $cpuDataStr -or -not $memoryDataStr -or -not $diskDataStr -or -not $contextSwitchDataStr) {
+        Write-Error "Uno o più dati raccolti sono null. Controlla i collector."
+        return
+    }
+
     # Genera un riepilogo
-    $summary = Generate-Summary -CpuData $cpuData -MemoryData $memoryData -DiskData $diskData -ContextSwitchData $contextSwitchData
+    $summary = Generate-Summary -CpuData $cpuDataStr -MemoryData $memoryDataStr -DiskData $diskDataStr -ContextSwitchData $contextSwitchDataStr
 
     # Esporta i risultati in base alle opzioni di configurazione
     if ($settings.ExportOptions.ExportToCSV) {
