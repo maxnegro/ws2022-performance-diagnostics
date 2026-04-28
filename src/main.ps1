@@ -9,7 +9,7 @@ Import-Module "$PSScriptRoot\..\ws2022-performance-diagnostics.psm1"
 function Main {
 
     # Importa le impostazioni dal file dati
-    $settings = Import-PowerShellDataFile "$PSScriptRoot/../config/settings.psd1"
+    $settings = Import-PowerShellDataFile "$PSScriptRoot/config/settings.psd1"
 
     # Importa gli script necessari
     . "$PSScriptRoot/collectors/services.ps1"
