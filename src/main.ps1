@@ -39,7 +39,20 @@ function Main {
     # Uptime e timestamp ultimo reset contatori
     $lastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
     $uptime = (Get-Date) - $lastBoot
-    $perfCounterReset = (Get-Counter '\\System\\System Up Time').CounterSamples[0].TimeStamp
+
+    # Prova a recuperare il contatore System Up Time in modo robusto
+    $perfCounterReset = $null
+    $counterNames = @(
+        '\\System\\System Up Time',
+        '\\Sistema\\Tempo di funzionamento sistema'
+    )
+    foreach ($counterName in $counterNames) {
+        $perfCounter = Get-Counter $counterName -ErrorAction SilentlyContinue
+        if ($perfCounter.CounterSamples -and $perfCounter.CounterSamples.Count -gt 0) {
+            $perfCounterReset = $perfCounter.CounterSamples[0].TimeStamp
+            break
+        }
+    }
 
     $servicesNotRunning = Get-ServicesNotRunning
     $advancedPerf = Get-AdvancedPerformance

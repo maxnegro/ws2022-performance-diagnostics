@@ -44,6 +44,12 @@ Per installare il progetto, clonare il repository e assicurarsi di avere PowerSh
 
 Eseguire il file `main.ps1` per avviare la raccolta delle informazioni sulle prestazioni. I dati raccolti verranno analizzati e possono essere esportati nei formati desiderati.
 
+Se viene riportato un errore di policy si può provare con 
+
+``` powershell
+powershell -ExecutionPolicy Bypass -File ".\src\main.ps1"
+```
+
 ## Contribuire
 
 Se desideri contribuire a questo progetto, sentiti libero di aprire una pull request o segnalare problemi.
