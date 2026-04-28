@@ -28,7 +28,7 @@ function Get-HyperVVMVitals {
             if ($counters.CounterSamples) {
                 $counterSamples = $counters.CounterSamples
                 # Valore _total host
-                $totalSample = $counterSamples | Where-Object { $_.InstanceName -eq '_total' }
+                $totalSample = $counterSamples | Where-Object { $_.InstanceName -eq '_total' } | Select-Object -First 1
                 if ($null -ne $totalSample) {
                     $hostWaitTime = $totalSample.CookedValue
                 } else {
