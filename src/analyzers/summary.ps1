@@ -46,15 +46,4 @@ $memorySummary
 $diskSummary
 
 $contextSwitchSummary
-    "@
-
-    return $finalSummary
-
-    return $finalSummary
-}
-
-# Esempio di utilizzo della funzione
-# $summary = Generate-Summary -CpuData "Dati CPU qui" -MemoryData "Dati Memoria qui" -DiskData "Dati Disco qui" -ContextSwitchData "Dati Context Switch qui"
-# Write-Output $summary
-
-# Nota: Sostituire i dati di esempio con i dati reali raccolti dai collector.
+"@
