@@ -8,7 +8,7 @@ function Get-HyperVVMVitals {
         Write-Verbose "Hyper-V non rilevato o non attivo su questo host."
         return @()
     }
-    $vms = Get-VM | Select-Object Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version
+    $vms = Get-VM | Select-Object Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version, ProcessorCount
     return $vms
 }
 
