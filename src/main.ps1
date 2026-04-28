@@ -141,7 +141,11 @@ function Main {
     $contextSwitchDataStr = $contextSwitchData | Out-String
     $uptimeStr = $uptime.ToString()
     $lastBootStr = $lastBoot.ToString()
-    $perfCounterResetStr = $perfCounterReset.ToString()
+    if ($null -ne $perfCounterReset) {
+        $perfCounterResetStr = $perfCounterReset.ToString()
+    } else {
+        $perfCounterResetStr = "N/D"
+    }
 
     # Controllo dati nulli
     if (-not $cpuDataStr -or -not $memoryDataStr -or -not $diskDataStr -or -not $contextSwitchDataStr) {
@@ -154,10 +158,10 @@ function Main {
 
     # Esporta i risultati in base alle opzioni di configurazione
     if ($settings.ExportOptions.ExportToCSV) {
-        Export-CsvData -FilePath "$PSScriptRoot/../performance_data.csv" -Data @($summary)
+        Export-CsvData -FilePath "$PSScriptRoot/../performance_data.csv" -Data @($fullVitals)
     }
     if ($settings.ExportOptions.ExportToJSON) {
-        Export-PerformanceDataToJson -PerformanceData $summary -OutputPath "$PSScriptRoot/../performance_data.json"
+        Export-PerformanceDataToJson -PerformanceData $fullVitals -OutputPath "$PSScriptRoot/../performance_data.json"
     }
     if ($settings.ExportOptions.LogToEventLog) {
         Log-PerformanceEvent -Message "Raccolta dati di performance completata con successo."
