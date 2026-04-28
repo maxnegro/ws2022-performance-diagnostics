@@ -28,12 +28,18 @@ function Main {
     . "$PSScriptRoot/exporters/json.ps1"
     . "$PSScriptRoot/exporters/eventlog.ps1"
 
+
     # Raccogliere informazioni di sistema
     $systemInfo = Get-ComputerInfo | Select-Object CsName, WindowsVersion, WindowsBuildLabEx, OsArchitecture
     $cpuData = Get-CPUInfo
     $memoryData = Get-MemoryInfo
     $diskData = Get-DiskPerformance
     $contextSwitchData = Get-ContextSwitchMetrics
+
+    # Uptime e timestamp ultimo reset contatori
+    $lastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+    $uptime = (Get-Date) - $lastBoot
+    $perfCounterReset = (Get-Counter '\\System\\System Up Time').CounterSamples[0].TimeStamp
 
     $servicesNotRunning = Get-ServicesNotRunning
     $advancedPerf = Get-AdvancedPerformance
@@ -53,6 +59,7 @@ function Main {
         $hypervVMVitals = Get-HyperVVMVitals
     }
 
+
     # Aggrega tutti i dati in un unico oggetto
     $fullVitals = [PSCustomObject]@{
         Timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -68,6 +75,9 @@ function Main {
         Processes = $topProcesses
         Network = $networkInfo
         HyperV = $hypervVMVitals
+        Uptime = $uptime.ToString()
+        LastBootUpTime = $lastBoot
+        PerfCounterResetTimestamp = $perfCounterReset
     }
 
     # Output tabellare e serializzazione
@@ -101,6 +111,9 @@ function Main {
     $memoryDataStr = $memoryData | Out-String
     $diskDataStr = $diskData | Out-String
     $contextSwitchDataStr = $contextSwitchData | Out-String
+    $uptimeStr = $uptime.ToString()
+    $lastBootStr = $lastBoot.ToString()
+    $perfCounterResetStr = $perfCounterReset.ToString()
 
     # Controllo dati nulli
     if (-not $cpuDataStr -or -not $memoryDataStr -or -not $diskDataStr -or -not $contextSwitchDataStr) {
@@ -109,7 +122,7 @@ function Main {
     }
 
     # Genera un riepilogo
-    $summary = Generate-Summary -CpuData $cpuDataStr -MemoryData $memoryDataStr -DiskData $diskDataStr -ContextSwitchData $contextSwitchDataStr
+    $summary = Generate-Summary -CpuData $cpuDataStr -MemoryData $memoryDataStr -DiskData $diskDataStr -ContextSwitchData $contextSwitchDataStr -Uptime $uptimeStr -LastBoot $lastBootStr -PerfCounterReset $perfCounterResetStr
 
     # Esporta i risultati in base alle opzioni di configurazione
     if ($settings.ExportOptions.ExportToCSV) {
