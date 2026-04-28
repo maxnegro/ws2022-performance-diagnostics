@@ -1,8 +1,8 @@
-# File: /ws2022-performance-diagnostics/ws2022-performance-diagnostics/src/collectors/disk.ps1
 
+Write-Host "[Collector] Inizio raccolta prestazioni disco"
+# File: /ws2022-performance-diagnostics/ws2022-performance-diagnostics/src/collectors/disk.ps1
 # Questo script raccoglie dati sulle prestazioni del disco in un'installazione di Windows Server 2022.
 # Monitora l'utilizzo e le statistiche di accesso al disco, utilizzando chiavi italiane.
-
 # Funzione per raccogliere informazioni sulle prestazioni del disco
 . "$PSScriptRoot/counter-resolver.ps1"
 

@@ -1,3 +1,4 @@
+Write-Host "[Collector] Inizio raccolta top processi per CPU e memoria"
 # Collector per top processi per CPU e memoria
 function Get-TopProcesses {
     $topCPU = Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, Id, CPU, WorkingSet

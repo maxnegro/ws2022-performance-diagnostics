@@ -1,5 +1,6 @@
-# Raccoglie informazioni sulle prestazioni della CPU
 
+Write-Host "[Collector] Inizio raccolta prestazioni CPU"
+# Raccoglie informazioni sulle prestazioni della CPU
 . "$PSScriptRoot\counter-resolver.ps1"
 
 # Funzione per ottenere l'utilizzo della CPU

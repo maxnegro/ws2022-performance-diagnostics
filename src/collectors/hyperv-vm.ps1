@@ -1,6 +1,7 @@
+
+Write-Host "[Collector] Inizio raccolta Hyper-V VM vitals"
 # Collector per raccogliere i "vitals" delle VM Hyper-V
 # Raccoglie CPU, RAM, dischi, coda IO, context switch, CPU ready/starving, ecc.
-
 . "$PSScriptRoot/counter-resolver.ps1"
 
 function Get-HyperVVMVitals {

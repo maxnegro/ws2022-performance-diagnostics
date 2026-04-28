@@ -9,33 +9,38 @@ Import-Module "$PSScriptRoot\..\ws2022-performance-diagnostics.psm1"
 function Main {
 
 
+    # Importa gli script necessari
+    . "$PSScriptRoot/collectors/services.ps1"
+    . "$PSScriptRoot/collectors/performance-advanced.ps1"
+    . "$PSScriptRoot/collectors/storage-extended.ps1"
+    . "$PSScriptRoot/collectors/events.ps1"
+    . "$PSScriptRoot/collectors/processes.ps1"
+    . "$PSScriptRoot/collectors/network.ps1"
+    . "$PSScriptRoot/collectors/cpu.ps1"
+    . "$PSScriptRoot/collectors/memory.ps1"
+    . "$PSScriptRoot/collectors/disk.ps1"
+    . "$PSScriptRoot/collectors/context-switch.ps1"
+    . "$PSScriptRoot/analyzers/thresholds.ps1"
+    . "$PSScriptRoot/analyzers/summary.ps1"
+    . "$PSScriptRoot/exporters/csv.ps1"
+    . "$PSScriptRoot/exporters/json.ps1"
+    . "$PSScriptRoot/exporters/eventlog.ps1"
+
     # Raccogliere informazioni di sistema
-    $systemInfo = Get-SystemInfo
+    $systemInfo = Get-ComputerInfo | Select-Object CsName, WindowsVersion, WindowsBuildLabEx, OsArchitecture
     $cpuData = Get-CPUInfo
     $memoryData = Get-MemoryInfo
-    $diskData = Get-DiskInfo
-    $contextSwitchData = Get-ContextSwitchInfo
+    $diskData = Get-DiskPerformance
+    $contextSwitchData = Get-ContextSwitchMetrics
 
-    # Collector avanzati
-    . "$PSScriptRoot/collectors/services.ps1"
     $servicesNotRunning = Get-ServicesNotRunning
-
-    . "$PSScriptRoot/collectors/performance-advanced.ps1"
     $advancedPerf = Get-AdvancedPerformance
-
-    . "$PSScriptRoot/collectors/storage-extended.ps1"
     $storageExt = [PSCustomObject]@{
         LogicalVolumes = (Get-LogicalVolumes)
         PhysicalDisks = (Get-PhysicalDisks)
     }
-
-    . "$PSScriptRoot/collectors/events.ps1"
     $recentEvents = Get-RecentEvents
-
-    . "$PSScriptRoot/collectors/processes.ps1"
     $topProcesses = Get-TopProcesses
-
-    . "$PSScriptRoot/collectors/network.ps1"
     $networkInfo = Get-NetworkInfo
 
     # Raccogliere vitals delle VM Hyper-V se host Hyper-V
@@ -68,17 +73,32 @@ function Main {
     Write-Output "\n--- Vitals raccolti e salvati in vitals-full.json ---"
     $fullVitals | Format-List
 
-    # Analizzare i dati raccolti
-    $thresholds = Get-Thresholds
-    $analysisResults = Analyze-Performance -cpuData $cpuData -memoryData $memoryData -diskData $diskData -contextSwitchData $contextSwitchData -thresholds $thresholds
+    # Definisci soglie di esempio
+    $thresholds = @{
+        "CPU" = 80
+        "Memoria" = 80
+        "Disco" = 90
+        "ContextSwitch" = 2000
+    }
 
-    # Generare un riepilogo
-    $summary = Generate-Summary -analysisResults $analysisResults
+    # Prepara le metriche per l'analisi
+    $metrics = @{
+        "CPU" = $cpuData.UtilizzoCPU
+        "Memoria" = $memoryData.Utilizzo_Memoria_Percento
+        "Disco" = ($diskData | Measure-Object -Property PercentualeUtilizzo -Maximum).Maximum
+        "ContextSwitch" = $contextSwitchData
+    }
 
-    # Esportare i risultati
-    Export-Results -summary $summary -format 'csv'
-    Export-Results -summary $summary -format 'json'
-    Export-Results -summary $summary -format 'eventlog'
+    # Analizza le performance rispetto alle soglie
+    $analysisResults = Analyze-PerformanceThresholds -Metrics $metrics -Thresholds $thresholds
+
+    # Genera un riepilogo
+    $summary = Generate-Summary -CpuData $cpuData -MemoryData $memoryData -DiskData $diskData -ContextSwitchData $contextSwitchData
+
+    # Esporta i risultati
+    Export-CsvData -FilePath "$PSScriptRoot/../performance_data.csv" -Data @($summary)
+    Export-PerformanceDataToJson -PerformanceData $summary -OutputPath "$PSScriptRoot/../performance_data.json"
+    Log-PerformanceEvent -Message "Raccolta dati di performance completata con successo."
 }
 
 # Eseguire la funzione principale

@@ -1,3 +1,5 @@
+
+Write-Host "[Collector] Inizio risoluzione Performance Counter localizzati"
 # Utility per risolvere in modo robusto i Performance Counter su sistemi localizzati.
 
 $script:PerfCounterListSetCache = $null

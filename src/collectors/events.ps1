@@ -1,3 +1,4 @@
+Write-Host "[Collector] Inizio raccolta eventi di sistema e applicazione recenti"
 # Collector per eventi di sistema e applicazione recenti
 function Get-RecentEvents {
     $now = Get-Date

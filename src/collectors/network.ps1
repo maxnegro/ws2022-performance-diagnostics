@@ -1,3 +1,4 @@
+Write-Host "[Collector] Inizio raccolta informazioni di rete"
 # Collector per info di rete principali
 function Get-NetworkInfo {
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }

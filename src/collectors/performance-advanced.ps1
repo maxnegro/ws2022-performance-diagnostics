@@ -1,3 +1,5 @@
+
+Write-Host "[Collector] Inizio raccolta performance avanzate"
 # Collector per performance avanzate
 . "$PSScriptRoot/counter-resolver.ps1"
 

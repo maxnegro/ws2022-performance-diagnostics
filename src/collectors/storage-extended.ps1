@@ -1,3 +1,4 @@
+Write-Host "[Collector] Inizio raccolta dettagli storage avanzati"
 # Collector per dettagli storage avanzati
 function Get-LogicalVolumes {
     Get-WmiObject Win32_LogicalDisk | ForEach-Object {

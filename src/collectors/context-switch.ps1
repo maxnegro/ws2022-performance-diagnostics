@@ -1,5 +1,6 @@
-# Raccoglie informazioni sui context switch del sistema
 
+Write-Host "[Collector] Inizio raccolta context switch"
+# Raccoglie informazioni sui context switch del sistema
 . "$PSScriptRoot\counter-resolver.ps1"
 
 # Funzione per ottenere le metriche di context switch

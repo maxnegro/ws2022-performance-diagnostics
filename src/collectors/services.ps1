@@ -1,3 +1,4 @@
+Write-Host "[Collector] Inizio raccolta servizi non in esecuzione"
 # Collector per servizi non in esecuzione
 function Get-ServicesNotRunning {
     $services = Get-Service | Where-Object { $_.Status -ne 'Running' }

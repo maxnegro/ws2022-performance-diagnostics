@@ -1,4 +1,6 @@
 
+
+Write-Host "[Collector] Inizio raccolta informazioni memoria"
 . "$PSScriptRoot/counter-resolver.ps1"
 
 function Get-MemoryUsage {
