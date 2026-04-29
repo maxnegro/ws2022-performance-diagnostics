@@ -48,26 +48,33 @@ function Get-HyperVVMVitals {
     } catch {}
 
     foreach ($vm in $vms) {
-        $results += $vm | Select-Object 
-            Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version, ProcessorCount,
+        $results += $vm | Select-Object @(
+            'Name', 'State', 'CPUUsage', 'MemoryAssigned', 'Uptime', 'Status', 'Version', 'ProcessorCount',
             @{Name='CPUWaitTimePerDispatchDetails';Expression={
-                if ($vcpuWaitTimesByVM.ContainsKey($_.Name)) { $vcpuWaitTimesByVM[$_.Name] } else { @() }
+                if ($vcpuWaitTimesByVM.ContainsKey($_.VMName)) { $vcpuWaitTimesByVM[$_.VMName] } else { $null }
             }},
             @{Name='VMProcessorCount';Expression={
-                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty Count -First 1)
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty Count -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
             }},
             @{Name='MaximumCountPerNumaNode';Expression={
-                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty MaximumCountPerNumaNode -First 1)
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty MaximumCountPerNumaNode -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
             }},
             @{Name='MaximumCountPerNumaSocket';Expression={
-                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty MaximumCountPerNumaSocket -First 1)
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty MaximumCountPerNumaSocket -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
             }},
             @{Name='HwThreadCountPerCore';Expression={
-                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty HwThreadCountPerCore -First 1)
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty HwThreadCountPerCore -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
+            }},
+            @{Name='CompatibilityForMigrationEnabled';Expression={
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty CompatibilityForMigrationEnabled -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
+            }},
+            @{Name='CompatibilityForOlderOperatingSystemsEnabled';Expression={
+                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty CompatibilityForOlderOperatingSystemsEnabled -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
             }},
             @{Name='NumaAligned';Expression={
-                ($vmNuma | Where-Object { $_.Name -eq $_.Name } | Select-Object -ExpandProperty NumaAligned -First 1)
+                $val = ($vmNuma | Where-Object { $_.Name -ieq $vm.Name } | Select-Object -ExpandProperty NumaAligned -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
             }}
+        )
     }
     return [PSCustomObject]@{
         HostCPUWaitTimePerDispatch = $hostWaitTime

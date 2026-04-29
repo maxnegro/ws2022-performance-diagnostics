@@ -99,8 +99,8 @@ function Main {
     }
 
     # Output tabellare e serializzazione
-    $fullVitals | ConvertTo-Json -Depth 10 | Out-File "$PSScriptRoot/../vitals-full.json" -Encoding UTF8
-    Write-Output "\n--- Vitals raccolti e salvati in vitals-full.json ---"
+    # $fullVitals | ConvertTo-Json -Depth 10 | Out-File "$PSScriptRoot/../vitals-full.json" -Encoding UTF8
+    # Write-Output "\n--- Vitals raccolti e salvati in vitals-full.json ---"
     $fullVitals | Format-List
 
 
