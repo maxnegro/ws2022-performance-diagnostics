@@ -9,13 +9,16 @@ function Get-HyperVVMVitals {
         return @()
     }
     $vms = Get-VM
+    $vmProcessors = Get-VMProcessor -VMName * | Select-Object VMName, Count, MaximumCountPerNumaNode, MaximumCountPerNumaSocket, HwThreadCountPerCore
+    $vmNuma = Get-VM | Select-Object Name, NumaAligned
     $results = @()
     $hostWaitTime = $null
     $vcpuWaitTimes = @()
     $vcpuWaitTimesByVM = @{}
+    $hostCPUs = Get-WmiObject -Class Win32_Processor | Select-Object DeviceID, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation
     try {
         # Raccolta diretta di tutti i valori vCPU wait time
-        $vcpuCounter = Get-Counter -Counter "\\Hyper-V Hypervisor Virtual Processor(*)\\CPU Wait Time Per Dispatch" -ErrorAction SilentlyContinue
+        $vcpuCounter = Get-Counter -Counter '\Hyper-V Hypervisor Virtual Processor(*)\CPU Wait Time Per Dispatch' -ErrorAction SilentlyContinue
         if ($vcpuCounter.CounterSamples) {
             $vcpuWaitTimes = $vcpuCounter.CounterSamples | ForEach-Object {
                 [PSCustomObject]@{
@@ -45,16 +48,30 @@ function Get-HyperVVMVitals {
     } catch {}
 
     foreach ($vm in $vms) {
-        $vital = $vm | Select-Object Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version, ProcessorCount
-        $waitTimeDetails = @()
-        if ($vcpuWaitTimesByVM.ContainsKey($vm.Name)) {
-            $waitTimeDetails = $vcpuWaitTimesByVM[$vm.Name]
-        }
-        $vital | Add-Member -MemberType NoteProperty -Name CPUWaitTimePerDispatchDetails -Value $waitTimeDetails
-        $results += $vital
+        $results += $vm | Select-Object 
+            Name, State, CPUUsage, MemoryAssigned, Uptime, Status, Version, ProcessorCount,
+            @{Name='CPUWaitTimePerDispatchDetails';Expression={
+                if ($vcpuWaitTimesByVM.ContainsKey($_.Name)) { $vcpuWaitTimesByVM[$_.Name] } else { @() }
+            }},
+            @{Name='VMProcessorCount';Expression={
+                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty Count -First 1)
+            }},
+            @{Name='MaximumCountPerNumaNode';Expression={
+                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty MaximumCountPerNumaNode -First 1)
+            }},
+            @{Name='MaximumCountPerNumaSocket';Expression={
+                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty MaximumCountPerNumaSocket -First 1)
+            }},
+            @{Name='HwThreadCountPerCore';Expression={
+                ($vmProcessors | Where-Object { $_.VMName -eq $_.Name } | Select-Object -ExpandProperty HwThreadCountPerCore -First 1)
+            }},
+            @{Name='NumaAligned';Expression={
+                ($vmNuma | Where-Object { $_.Name -eq $_.Name } | Select-Object -ExpandProperty NumaAligned -First 1)
+            }}
     }
     return [PSCustomObject]@{
         HostCPUWaitTimePerDispatch = $hostWaitTime
+        HostCPUs = $hostCPUs
         VMs = $results
         VCPUWaitTimes = $vcpuWaitTimes
         VCPUWaitTimesByVM = $vcpuWaitTimesByVM
