@@ -15,8 +15,42 @@ function Get-HyperVVMVitals {
     $vcpuWaitTimesByVM = @{}
     $hostCPUs = Get-CimInstance -ClassName Win32_Processor | Select-Object DeviceID, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation
     try {
+        $vcpuCounterPath = $null
+        $counterSetCandidates = @(
+            'Hyper-V Hypervisor Virtual Processor',
+            'Processore virtuale hypervisor Hyper-V'
+        )
+        $counterCandidates = @(
+            'CPU Wait Time Per Dispatch',
+            'Tempo di attesa CPU per dispatch',
+            'Tempo attesa CPU per dispatch',
+            'Tempo di attesa CPU per invio'
+        )
+
+        if (Get-Command Resolve-PerfCounterPath -ErrorAction SilentlyContinue) {
+            $vcpuCounterPath = Resolve-PerfCounterPath -CounterSetCandidates $counterSetCandidates -CounterCandidates $counterCandidates -Instance '*'
+
+            if ([string]::IsNullOrWhiteSpace($vcpuCounterPath) -and (Get-Command Get-PerfCounterListSetCache -ErrorAction SilentlyContinue)) {
+                $sets = Get-PerfCounterListSetCache | Where-Object { $_.CounterSetName -in $counterSetCandidates }
+                foreach ($set in $sets) {
+                    $vcpuCounterPath = @($set.Paths) | Where-Object {
+                        $_ -imatch '(wait time per dispatch|attesa.*cpu.*dispatch|attesa.*cpu.*invio)'
+                    } | Select-Object -First 1
+
+                    if (-not [string]::IsNullOrWhiteSpace($vcpuCounterPath)) {
+                        break
+                    }
+                }
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($vcpuCounterPath)) {
+            # Fallback legacy: mantiene compatibilita con host EN dove il path e' standard.
+            $vcpuCounterPath = '\Hyper-V Hypervisor Virtual Processor(*)\CPU Wait Time Per Dispatch'
+        }
+
         # Raccolta diretta di tutti i valori vCPU wait time
-        $vcpuCounter = Get-Counter -Counter '\Hyper-V Hypervisor Virtual Processor(*)\CPU Wait Time Per Dispatch' -ErrorAction SilentlyContinue
+        $vcpuCounter = Get-Counter -Counter $vcpuCounterPath -ErrorAction SilentlyContinue
         if ($vcpuCounter.CounterSamples) {
             $vcpuWaitTimes = $vcpuCounter.CounterSamples | ForEach-Object {
                 [PSCustomObject]@{
@@ -26,7 +60,7 @@ function Get-HyperVVMVitals {
             }
             # Raggruppa per VM e vCPU
             foreach ($sample in $vcpuCounter.CounterSamples) {
-                if ($sample.InstanceName -match "^(.*):hv vp (\\d+)$") {
+                if ($sample.InstanceName -match "^(.*):hv vp (\d+)$") {
                     $vmName = $Matches[1]
                     $vpNum = [int]$Matches[2]
                     if (-not $vcpuWaitTimesByVM.ContainsKey($vmName)) {
