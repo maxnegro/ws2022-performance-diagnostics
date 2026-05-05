@@ -9,7 +9,34 @@ function Get-HyperVVMVitals {
     $vms = Get-VM
     $vmProcessors = Get-VMProcessor -VMName * | Select-Object VMName, Count, MaximumCountPerNumaNode, MaximumCountPerNumaSocket, HwThreadCountPerCore, CompatibilityForMigrationEnabled, CompatibilityForOlderOperatingSystemsEnabled
     $vmNuma = $vms | Select-Object Name, NumaAligned
+    $vmMemory = Get-VMMemory -VMName * | Select-Object VMName, DynamicMemoryEnabled, Minimum, Maximum, Buffer, Priority, Startup
     $results = [System.Collections.Generic.List[object]]::new()
+
+    # Impostazioni BCD host (bcdedit /enum {hypervisorsettings} + {current})
+    $bcdSettings = $null
+    try {
+        $parseBcd = {
+            param([string[]]$lines)
+            $result = @{}
+            foreach ($line in $lines) {
+                if ($line -match '^(\S+)\s{2,}(.+)$') {
+                    $result[$Matches[1].Trim()] = $Matches[2].Trim()
+                }
+            }
+            return $result
+        }
+
+        $hvLines  = & bcdedit /enum '{hypervisorsettings}' 2>$null
+        $curLines = & bcdedit /enum '{current}'           2>$null
+
+        $hvMap  = & $parseBcd $hvLines
+        $curMap = & $parseBcd $curLines
+
+        $bcdSettings = [PSCustomObject]@{
+            HypervisorSettings = $hvMap
+            BootCurrent        = $curMap
+        }
+    } catch {}
     $hostWaitTime = $null
     $vcpuWaitTimes = @()
     $vcpuWaitTimesByVM = @{}
@@ -97,6 +124,7 @@ function Get-HyperVVMVitals {
     foreach ($vm in $vms) {
         $proc = $vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -First 1
         $numaInfo = $vmNuma | Where-Object { $_.Name -ieq $vm.Name } | Select-Object -First 1
+        $mem = $vmMemory | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -First 1
         $entry = $vm | Select-Object @(
             'Name', 'State', 'CPUUsage', 'MemoryAssigned', 'Uptime', 'Status', 'Version', 'ProcessorCount',
             @{Name='CPUWaitTimePerDispatchDetails';Expression={
@@ -108,16 +136,23 @@ function Get-HyperVVMVitals {
             @{Name='HwThreadCountPerCore';Expression={ $proc.HwThreadCountPerCore }},
             @{Name='CompatibilityForMigrationEnabled';Expression={ $proc.CompatibilityForMigrationEnabled }},
             @{Name='CompatibilityForOlderOperatingSystemsEnabled';Expression={ $proc.CompatibilityForOlderOperatingSystemsEnabled }},
-            @{Name='NumaAligned';Expression={ $numaInfo.NumaAligned }}
+            @{Name='NumaAligned';Expression={ $numaInfo.NumaAligned }},
+            @{Name='DynamicMemoryEnabled';Expression={ $mem.DynamicMemoryEnabled }},
+            @{Name='MemoryMinimumMB';Expression={ if ($null -ne $mem.Minimum) { [math]::Round($mem.Minimum / 1MB) } else { $null } }},
+            @{Name='MemoryMaximumMB';Expression={ if ($null -ne $mem.Maximum) { [math]::Round($mem.Maximum / 1MB) } else { $null } }},
+            @{Name='MemoryStartupMB';Expression={ if ($null -ne $mem.Startup) { [math]::Round($mem.Startup / 1MB) } else { $null } }},
+            @{Name='MemoryBufferPercent';Expression={ $mem.Buffer }},
+            @{Name='MemoryPriority';Expression={ $mem.Priority }}
         )
         $results.Add($entry)
     }
     return [PSCustomObject]@{
+        BcdSettings            = $bcdSettings
         HostCPUWaitTimePerDispatch = $hostWaitTime
-        HostCPUs = $hostCPUs
-        VMs = $results
-        VCPUWaitTimes = $vcpuWaitTimes
-        VCPUWaitTimesByVM = $vcpuWaitTimesByVM
+        HostCPUs               = $hostCPUs
+        VMs                    = $results
+        VCPUWaitTimes          = $vcpuWaitTimes
+        VCPUWaitTimesByVM      = $vcpuWaitTimesByVM
     }
 }
 
