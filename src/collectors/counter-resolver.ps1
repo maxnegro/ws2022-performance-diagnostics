@@ -35,8 +35,24 @@ function Resolve-PerfCounterPath {
 
         foreach ($counterCandidate in $CounterCandidates) {
             if ($Instance -eq '*') {
-                # Restituisci path wildcard, es: \\Set(*)\Contatore
-                return "\\$($matchedSet.CounterSetName)(*)\$counterCandidate"
+                # Per wildcard, usa un path realmente presente nel set per evitare mismatch lingua.
+                $wildcardPath = @($matchedSet.Paths) | Where-Object {
+                    $_ -imatch "^\\\\$([regex]::Escape($matchedSet.CounterSetName))\\\(\*\\\)\\$([regex]::Escape($counterCandidate))$"
+                } | Select-Object -First 1
+
+                if ($null -ne $wildcardPath) {
+                    return $wildcardPath
+                }
+
+                $fallbackWildcardPath = @($matchedSet.Paths) | Where-Object {
+                    $_ -imatch "\\$([regex]::Escape($counterCandidate))$"
+                } | Select-Object -First 1
+
+                if ($null -ne $fallbackWildcardPath) {
+                    return $fallbackWildcardPath
+                }
+
+                continue
             }
 
             $paths = @($matchedSet.PathsWithInstances + $matchedSet.Paths)

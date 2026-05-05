@@ -51,6 +51,21 @@ function Get-HyperVVMVitals {
 
         # Raccolta diretta di tutti i valori vCPU wait time
         $vcpuCounter = Get-Counter -Counter $vcpuCounterPath -ErrorAction SilentlyContinue
+        if (($null -eq $vcpuCounter -or $null -eq $vcpuCounter.CounterSamples -or $vcpuCounter.CounterSamples.Count -eq 0) -and (Get-Command Get-PerfCounterListSetCache -ErrorAction SilentlyContinue)) {
+            $sets = Get-PerfCounterListSetCache | Where-Object { $_.CounterSetName -in $counterSetCandidates }
+            foreach ($set in $sets) {
+                $fallbackPath = @($set.Paths) | Where-Object {
+                    $_ -imatch '(wait time per dispatch|attesa.*cpu.*dispatch|attesa.*cpu.*invio)'
+                } | Select-Object -First 1
+
+                if (-not [string]::IsNullOrWhiteSpace($fallbackPath)) {
+                    $vcpuCounter = Get-Counter -Counter $fallbackPath -ErrorAction SilentlyContinue
+                    if ($null -ne $vcpuCounter -and $null -ne $vcpuCounter.CounterSamples -and $vcpuCounter.CounterSamples.Count -gt 0) {
+                        break
+                    }
+                }
+            }
+        }
         if ($vcpuCounter.CounterSamples) {
             $vcpuWaitTimes = $vcpuCounter.CounterSamples | ForEach-Object {
                 [PSCustomObject]@{
