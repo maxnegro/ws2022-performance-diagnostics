@@ -42,8 +42,8 @@ function Main {
     # Prova a recuperare il contatore System Up Time in modo robusto
     $perfCounterReset = $null
     $counterNames = @(
-        '\\System\\System Up Time',
-        '\\Sistema\\Tempo di funzionamento sistema'
+        '\System\System Up Time',
+        '\Sistema\Tempo di funzionamento sistema'
     )
     foreach ($counterName in $counterNames) {
         $perfCounter = Get-Counter $counterName -ErrorAction SilentlyContinue

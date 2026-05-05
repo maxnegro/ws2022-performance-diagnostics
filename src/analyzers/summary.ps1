@@ -4,9 +4,6 @@
 # per identificare eventuali problemi di performance legati a disco, processore, memoria e context switch.
 
 
-# Carica le impostazioni dal file dati (non modulo!)
-$settings = Import-PowerShellDataFile "$PSScriptRoot\..\config\settings.psd1"
-
 # Funzione per generare il riepilogo
 function Generate-Summary {
     param (

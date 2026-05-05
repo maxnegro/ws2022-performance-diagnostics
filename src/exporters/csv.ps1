@@ -1,10 +1,5 @@
 # Questo script esporta i dati raccolti in formato CSV.
 
-param (
-    [string]$OutputFile = "performance_data.csv",
-    [array]$Data
-)
-
 function Export-CsvData {
     param (
         [string]$FilePath,
@@ -24,5 +19,3 @@ function Export-CsvData {
     }
 }
 
-# Chiamata alla funzione di esportazione
-Export-CsvData -FilePath $OutputFile -Data $Data

@@ -48,7 +48,7 @@ function Get-HyperVVMVitals {
     foreach ($vm in $vms) {
         $proc = $vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -First 1
         $numaInfo = $vmNuma | Where-Object { $_.Name -ieq $vm.Name } | Select-Object -First 1
-        $results.Add($vm | Select-Object @(
+        $entry = $vm | Select-Object @(
             'Name', 'State', 'CPUUsage', 'MemoryAssigned', 'Uptime', 'Status', 'Version', 'ProcessorCount',
             @{Name='CPUWaitTimePerDispatchDetails';Expression={
                 if ($vcpuWaitTimesByVM.ContainsKey($_.Name)) { $vcpuWaitTimesByVM[$_.Name] } else { $null }
@@ -60,7 +60,8 @@ function Get-HyperVVMVitals {
             @{Name='CompatibilityForMigrationEnabled';Expression={ $proc.CompatibilityForMigrationEnabled }},
             @{Name='CompatibilityForOlderOperatingSystemsEnabled';Expression={ $proc.CompatibilityForOlderOperatingSystemsEnabled }},
             @{Name='NumaAligned';Expression={ $numaInfo.NumaAligned }}
-        ))
+        )
+        $results.Add($entry)
     }
     return [PSCustomObject]@{
         HostCPUWaitTimePerDispatch = $hostWaitTime

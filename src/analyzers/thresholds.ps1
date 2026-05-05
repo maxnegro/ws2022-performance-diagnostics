@@ -27,22 +27,3 @@ function Analyze-PerformanceThresholds {
 
     return $results
 }
-
-# Esempio di utilizzo
-$metrics = @{
-    "CPU" = 85
-    "Memoria" = 70
-    "Disco" = 90
-    "ContextSwitch" = 1500
-}
-
-$thresholds = @{
-    "CPU" = 80
-    "Memoria" = 75
-    "Disco" = 85
-    "ContextSwitch" = 1000
-}
-
-$performanceResults = Analyze-PerformanceThresholds -Metrics $metrics -Thresholds $thresholds
-
-$performanceResults | ForEach-Object { Write-Host $_ }
