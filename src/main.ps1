@@ -3,7 +3,7 @@
 # Punto di ingresso principale per il progetto di diagnostica delle prestazioni di Windows Server 2022
 
 # Importa i moduli necessari
-Import-Module "$PSScriptRoot\..\ws2022-performance-diagnostics.psm1"
+Import-Module "$PSScriptRoot/../ws2022-performance-diagnostics.psm1"
 
 # Funzione principale per orchestrare la raccolta, analisi ed esportazione dei dati
 function Main {
@@ -12,6 +12,7 @@ function Main {
     $settings = Import-PowerShellDataFile "$PSScriptRoot/config/settings.psd1"
 
     # Importa gli script necessari
+    . "$PSScriptRoot/collectors/counter-resolver.ps1"
     . "$PSScriptRoot/collectors/services.ps1"
     . "$PSScriptRoot/collectors/performance-advanced.ps1"
     . "$PSScriptRoot/collectors/storage-extended.ps1"
@@ -21,7 +22,6 @@ function Main {
     . "$PSScriptRoot/collectors/cpu.ps1"
     . "$PSScriptRoot/collectors/memory.ps1"
     . "$PSScriptRoot/collectors/disk.ps1"
-    . "$PSScriptRoot/collectors/context-switch.ps1"
     . "$PSScriptRoot/analyzers/thresholds.ps1"
     . "$PSScriptRoot/analyzers/summary.ps1"
     . "$PSScriptRoot/exporters/csv.ps1"
@@ -31,10 +31,9 @@ function Main {
 
     # Raccogliere informazioni di sistema
     $systemInfo = Get-ComputerInfo | Select-Object CsName, WindowsVersion, WindowsBuildLabEx, OsArchitecture
-    $cpuData = Get-CPUInfo
+    $cpuData = Collect-CPUData
     $memoryData = Get-MemoryInfo
     $diskData = Get-DiskPerformance
-    $contextSwitchData = Get-ContextSwitchMetrics
 
     # Uptime e timestamp ultimo reset contatori
     $lastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
@@ -83,7 +82,6 @@ function Main {
         Memory = $memoryData
         Storage = $storageExt
         Disk = $diskData
-        ContextSwitch = $contextSwitchData
         Performance = $advancedPerf
         ServicesNotRunning = $servicesNotRunning
         Events = $recentEvents
@@ -116,10 +114,10 @@ function Main {
 
     # Prepara le metriche per l'analisi
     $metrics = @{
-        "CPU" = $cpuData.UtilizzoCPU
+        "CPU" = $cpuData.'Utilizzo CPU (%)'
         "Memoria" = $memoryData.Utilizzo_Memoria_Percento
         "Disco" = ($diskData | Measure-Object -Property PercentualeUtilizzo -Maximum).Maximum
-        "ContextSwitch" = $contextSwitchData
+        "ContextSwitch" = $advancedPerf.ContextSwitchesPerSec
     }
 
     # Analizza le performance rispetto alle soglie
@@ -130,7 +128,7 @@ function Main {
     $cpuDataStr = $cpuData | Out-String
     $memoryDataStr = $memoryData | Out-String
     $diskDataStr = $diskData | Out-String
-    $contextSwitchDataStr = $contextSwitchData | Out-String
+    $contextSwitchDataStr = $advancedPerf.ContextSwitchesPerSec | Out-String
     $uptimeStr = $uptime.ToString()
     $lastBootStr = $lastBoot.ToString()
     if ($null -ne $perfCounterReset) {

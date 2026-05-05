@@ -1,5 +1,4 @@
-Write-Host "[Collector] Inizio raccolta eventi di sistema e applicazione recenti"
-# Collector per eventi di sistema e applicazione recenti
+# Raccoglie eventi recenti di errore e warning dai log System e Application
 function Get-RecentEvents {
     $now = Get-Date
     $last24h = $now.AddHours(-24)
@@ -10,7 +9,3 @@ function Get-RecentEvents {
         Application = $application | Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message
     }
 }
-
-# Esegui e mostra
-$events = Get-RecentEvents
-$events | Format-List

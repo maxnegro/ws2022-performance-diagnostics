@@ -1,7 +1,6 @@
-Write-Host "[Collector] Inizio raccolta dettagli storage avanzati"
-# Collector per dettagli storage avanzati
+# Raccoglie dettagli storage avanzati (volumi logici e dischi fisici)
 function Get-LogicalVolumes {
-    Get-WmiObject Win32_LogicalDisk | ForEach-Object {
+    Get-CimInstance -ClassName Win32_LogicalDisk | ForEach-Object {
         [PSCustomObject]@{
             DriveLetter = $_.DeviceID
             FileSystem = $_.FileSystem
@@ -14,21 +13,13 @@ function Get-LogicalVolumes {
 }
 
 function Get-PhysicalDisks {
-    Get-WmiObject Win32_DiskDrive | ForEach-Object {
+    Get-CimInstance -ClassName Win32_DiskDrive | ForEach-Object {
         [PSCustomObject]@{
             FriendlyName = $_.Model
             MediaType = $_.MediaType
             Size = $_.Size
             HealthStatus = $_.Status
-            OperationalStatus = $_.Status
+            OperationalStatus = $_.ConfigManagerErrorCode
         }
     }
 }
-
-# Esegui e mostra
-$volumes = Get-LogicalVolumes
-$disks = Get-PhysicalDisks
-[PSCustomObject]@{
-    LogicalVolumes = $volumes
-    PhysicalDisks = $disks
-} | Format-List

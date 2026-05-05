@@ -1,6 +1,4 @@
-Write-Host "[Collector] Inizio raccolta Hyper-V VM vitals e Integration Services"
-# Collector per raccogliere i "vitals" delle VM Hyper-V e i servizi di integrazione
-# Raccoglie info principali delle VM tramite Get-VM e i servizi tramite Get-VMIntegrationService
+# Raccoglie vitals e integration services delle VM Hyper-V
 
 function Get-HyperVVMVitals {
     $hypervService = Get-Service -Name vmms -ErrorAction SilentlyContinue
@@ -9,13 +7,13 @@ function Get-HyperVVMVitals {
         return @()
     }
     $vms = Get-VM
-    $vmProcessors = Get-VMProcessor -VMName * | Select-Object VMName, Count, MaximumCountPerNumaNode, MaximumCountPerNumaSocket, HwThreadCountPerCore
-    $vmNuma = Get-VM | Select-Object Name, NumaAligned
-    $results = @()
+    $vmProcessors = Get-VMProcessor -VMName * | Select-Object VMName, Count, MaximumCountPerNumaNode, MaximumCountPerNumaSocket, HwThreadCountPerCore, CompatibilityForMigrationEnabled, CompatibilityForOlderOperatingSystemsEnabled
+    $vmNuma = $vms | Select-Object Name, NumaAligned
+    $results = [System.Collections.Generic.List[object]]::new()
     $hostWaitTime = $null
     $vcpuWaitTimes = @()
     $vcpuWaitTimesByVM = @{}
-    $hostCPUs = Get-WmiObject -Class Win32_Processor | Select-Object DeviceID, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation
+    $hostCPUs = Get-CimInstance -ClassName Win32_Processor | Select-Object DeviceID, NumberOfCores, NumberOfLogicalProcessors, SocketDesignation
     try {
         # Raccolta diretta di tutti i valori vCPU wait time
         $vcpuCounter = Get-Counter -Counter '\Hyper-V Hypervisor Virtual Processor(*)\CPU Wait Time Per Dispatch' -ErrorAction SilentlyContinue
@@ -32,12 +30,12 @@ function Get-HyperVVMVitals {
                     $vmName = $Matches[1]
                     $vpNum = [int]$Matches[2]
                     if (-not $vcpuWaitTimesByVM.ContainsKey($vmName)) {
-                        $vcpuWaitTimesByVM[$vmName] = @()
+                        $vcpuWaitTimesByVM[$vmName] = [System.Collections.Generic.List[object]]::new()
                     }
-                    $vcpuWaitTimesByVM[$vmName] += [PSCustomObject]@{
+                    $vcpuWaitTimesByVM[$vmName].Add([PSCustomObject]@{
                         VirtualProcessor = $vpNum
                         Value = $sample.CookedValue
-                    }
+                    })
                 } elseif ($sample.InstanceName -eq '_total') {
                     $hostWaitTime = $sample.CookedValue
                 }
@@ -48,33 +46,21 @@ function Get-HyperVVMVitals {
     } catch {}
 
     foreach ($vm in $vms) {
-        $results += $vm | Select-Object @(
+        $proc = $vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -First 1
+        $numaInfo = $vmNuma | Where-Object { $_.Name -ieq $vm.Name } | Select-Object -First 1
+        $results.Add($vm | Select-Object @(
             'Name', 'State', 'CPUUsage', 'MemoryAssigned', 'Uptime', 'Status', 'Version', 'ProcessorCount',
             @{Name='CPUWaitTimePerDispatchDetails';Expression={
-                if ($vcpuWaitTimesByVM.ContainsKey($_.VMName)) { $vcpuWaitTimesByVM[$_.VMName] } else { $null }
+                if ($vcpuWaitTimesByVM.ContainsKey($_.Name)) { $vcpuWaitTimesByVM[$_.Name] } else { $null }
             }},
-            @{Name='VMProcessorCount';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty Count -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='MaximumCountPerNumaNode';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty MaximumCountPerNumaNode -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='MaximumCountPerNumaSocket';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty MaximumCountPerNumaSocket -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='HwThreadCountPerCore';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty HwThreadCountPerCore -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='CompatibilityForMigrationEnabled';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty CompatibilityForMigrationEnabled -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='CompatibilityForOlderOperatingSystemsEnabled';Expression={
-                $val = ($vmProcessors | Where-Object { $_.VMName -ieq $vm.Name } | Select-Object -ExpandProperty CompatibilityForOlderOperatingSystemsEnabled -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }},
-            @{Name='NumaAligned';Expression={
-                $val = ($vmNuma | Where-Object { $_.Name -ieq $vm.Name } | Select-Object -ExpandProperty NumaAligned -First 1 -ErrorAction SilentlyContinue); if ($null -eq $val) { $null } else { $val }
-            }}
-        )
+            @{Name='VMProcessorCount';Expression={ $proc.Count }},
+            @{Name='MaximumCountPerNumaNode';Expression={ $proc.MaximumCountPerNumaNode }},
+            @{Name='MaximumCountPerNumaSocket';Expression={ $proc.MaximumCountPerNumaSocket }},
+            @{Name='HwThreadCountPerCore';Expression={ $proc.HwThreadCountPerCore }},
+            @{Name='CompatibilityForMigrationEnabled';Expression={ $proc.CompatibilityForMigrationEnabled }},
+            @{Name='CompatibilityForOlderOperatingSystemsEnabled';Expression={ $proc.CompatibilityForOlderOperatingSystemsEnabled }},
+            @{Name='NumaAligned';Expression={ $numaInfo.NumaAligned }}
+        ))
     }
     return [PSCustomObject]@{
         HostCPUWaitTimePerDispatch = $hostWaitTime
@@ -91,28 +77,11 @@ function Get-HyperVVMIntegrationServices {
         Write-Verbose "Hyper-V non rilevato o non attivo su questo host."
         return @()
     }
-    $results = @()
+    $results = [System.Collections.Generic.List[object]]::new()
     $vms = Get-VM
     foreach ($vm in $vms) {
         $services = Get-VMIntegrationService -VMName $vm.Name | Select-Object VMName, Name, Enabled, PrimaryStatusDescription, SecondaryStatusDescription
-        $results += $services
+        foreach ($svc in $services) { $results.Add($svc) }
     }
     return $results
-}
-
-# Esegui la raccolta e mostra i dati
-$vmVitals = Get-HyperVVMVitals
-if ($vmVitals.Count -gt 0) {
-    Write-Host "--- Vitals VM Hyper-V ---"
-    $vmVitals | Format-Table -AutoSize
-} else {
-    Write-Output "Nessuna VM Hyper-V trovata o Hyper-V non attivo."
-}
-
-$vmIntegrationServices = Get-HyperVVMIntegrationServices
-if ($vmIntegrationServices.Count -gt 0) {
-    Write-Host "--- Integration Services per VM ---"
-    $vmIntegrationServices | Format-Table -AutoSize
-} else {
-    Write-Output "Nessun servizio di integrazione trovato o Hyper-V non attivo."
 }

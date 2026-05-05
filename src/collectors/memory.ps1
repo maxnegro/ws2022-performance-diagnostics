@@ -1,7 +1,5 @@
 
-
-Write-Host "[Collector] Inizio raccolta informazioni memoria"
-. "$PSScriptRoot/counter-resolver.ps1"
+# Raccoglie informazioni sull'utilizzo della memoria
 
 function Get-MemoryUsage {
 	$memUsagePerc = Get-ResolvedCounterCookedValue `
@@ -11,14 +9,14 @@ function Get-MemoryUsage {
 		return [math]::Round([double]$memUsagePerc, 2)
 	}
 	# Fallback: calcolo percentuale da WMI
-	$os = Get-WmiObject Win32_OperatingSystem
+	$os = Get-CimInstance -ClassName Win32_OperatingSystem
 	$used = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
 	$perc = ($used / $os.TotalVisibleMemorySize) * 100
 	return [math]::Round($perc, 2)
 }
 
 function Get-MemoryInfo {
-	$os = Get-WmiObject Win32_OperatingSystem
+	$os = Get-CimInstance -ClassName Win32_OperatingSystem
 	$info = [PSCustomObject]@{
 		'Memoria_Fisica_Totale_MB' = [math]::Round($os.TotalVisibleMemorySize/1KB, 2)
 		'Memoria_Fisica_Disponibile_MB' = [math]::Round($os.FreePhysicalMemory/1KB, 2)
@@ -26,7 +24,3 @@ function Get-MemoryInfo {
 	}
 	return $info
 }
-
-# Esegui la raccolta e mostra i dati
-$memoria = Get-MemoryInfo
-$memoria | Format-Table -AutoSize

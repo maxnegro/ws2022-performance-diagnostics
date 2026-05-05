@@ -1,7 +1,5 @@
 
-Write-Host "[Collector] Inizio raccolta performance avanzate"
-# Collector per performance avanzate
-. "$PSScriptRoot/counter-resolver.ps1"
+# Raccoglie metriche di performance avanzate
 
 function Get-AdvancedPerformance {
     $queueLen = Get-ResolvedCounterCookedValue `
@@ -19,7 +17,3 @@ function Get-AdvancedPerformance {
         ContextSwitchesPerSec = $contextSwitches
     }
 }
-
-# Esegui e mostra
-$perf = Get-AdvancedPerformance
-$perf | Format-Table -AutoSize

@@ -1,7 +1,5 @@
 
-Write-Host "[Collector] Inizio raccolta prestazioni CPU"
 # Raccoglie informazioni sulle prestazioni della CPU
-. "$PSScriptRoot\counter-resolver.ps1"
 
 # Funzione per ottenere l'utilizzo della CPU
 function Get-CPUUsage {
@@ -21,7 +19,7 @@ function Get-CPUUsage {
 
 # Funzione per ottenere informazioni dettagliate sulla CPU
 function Get-CPUInfo {
-    $cpuInfo = Get-WmiObject Win32_Processor
+    $cpuInfo = Get-CimInstance -ClassName Win32_Processor
     return $cpuInfo | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors, MaxClockSpeed
 }
 
@@ -41,7 +39,3 @@ function Collect-CPUData {
 
     return $cpuData
 }
-
-# Esecuzione della raccolta dei dati
-$cpuData = Collect-CPUData
-$cpuData | Format-Table -AutoSize

@@ -10,11 +10,18 @@ Il progetto è organizzato nella seguente struttura:
 ws2022-performance-diagnostics
 ├── src
 │   ├── collectors
-│   │   ├── cpu.ps1          # Raccoglie informazioni sulle prestazioni della CPU
-│   │   ├── memory.ps1       # Raccoglie informazioni sull'utilizzo della memoria
-│   │   ├── disk.ps1         # Raccoglie dati sulle prestazioni del disco
-│   │   ├── context-switch.ps1 # Raccoglie informazioni sui context switch del sistema
-│   │   └── system-info.ps1   # Raccoglie informazioni generali sul sistema
+│   │   ├── cpu.ps1                  # Raccoglie informazioni sulle prestazioni della CPU
+│   │   ├── memory.ps1               # Raccoglie informazioni sull'utilizzo della memoria
+│   │   ├── disk.ps1                 # Raccoglie dati sulle prestazioni del disco
+│   │   ├── performance-advanced.ps1 # Raccoglie metriche avanzate (processor queue, context switch, ecc.)
+│   │   ├── storage-extended.ps1     # Raccoglie dettagli volumi logici e dischi fisici
+│   │   ├── network.ps1              # Raccoglie informazioni sugli adapter di rete
+│   │   ├── processes.ps1            # Raccoglie i top processi per CPU e memoria
+│   │   ├── services.ps1             # Raccoglie i servizi non in esecuzione
+│   │   ├── events.ps1               # Raccoglie eventi recenti di errore/warning
+│   │   ├── hyperv-vm.ps1            # Raccoglie vitals e integration services delle VM Hyper-V
+│   │   ├── counter-resolver.ps1     # Utility per risolvere contatori localizzati
+│   │   └── system-info.ps1          # Raccoglie informazioni generali sul sistema
 │   ├── analyzers
 │   │   ├── thresholds.ps1    # Analizza i dati e confronta le metriche con le soglie
 │   │   └── summary.ps1       # Genera un riepilogo delle informazioni raccolte

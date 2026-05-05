@@ -1,20 +1,15 @@
-Write-Host "[Collector] Inizio raccolta servizi non in esecuzione"
-# Collector per servizi non in esecuzione
+# Raccoglie i servizi non in esecuzione
 function Get-ServicesNotRunning {
     $services = Get-Service | Where-Object { $_.Status -ne 'Running' }
-    $result = @()
+    $result = [System.Collections.Generic.List[object]]::new()
     foreach ($svc in $services) {
-        $svcWmi = Get-WmiObject -Class Win32_Service -Filter "Name='$($svc.Name)'" -ErrorAction SilentlyContinue
-        $result += [PSCustomObject]@{
+        $svcCim = Get-CimInstance -ClassName Win32_Service -Filter "Name='$($svc.Name)'" -ErrorAction SilentlyContinue
+        $result.Add([PSCustomObject]@{
             Name = $svc.Name
             DisplayName = $svc.DisplayName
             Status = [int]$svc.Status.value__
-            StartType = if ($svcWmi) { [int]$svcWmi.StartMode.value__ } else { $null }
-        }
+            StartType = if ($svcCim) { $svcCim.StartMode } else { $null }
+        })
     }
     return $result
 }
-
-# Esegui e mostra
-$notRunning = Get-ServicesNotRunning
-$notRunning | Format-Table -AutoSize
