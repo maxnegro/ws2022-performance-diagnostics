@@ -12,29 +12,35 @@ function Get-HyperVVMVitals {
     $vmMemory = Get-VMMemory -VMName * | Select-Object VMName, DynamicMemoryEnabled, Minimum, Maximum, Buffer, Priority, Startup
     $results = [System.Collections.Generic.List[object]]::new()
 
-    # Impostazioni BCD host (bcdedit /enum {hypervisorsettings} + {current})
+    # Impostazioni BCD host (tutte le entry da bcdedit /enum all)
     $bcdSettings = $null
     try {
-        $parseBcd = {
-            param([string[]]$lines)
-            $result = @{}
-            foreach ($line in $lines) {
-                if ($line -match '^(\S+)\s{2,}(.+)$') {
-                    $result[$Matches[1].Trim()] = $Matches[2].Trim()
-                }
+        $allLines = & bcdedit /enum all 2>$null
+        $sections = [System.Collections.Generic.List[hashtable]]::new()
+        $current  = $null
+
+        foreach ($line in $allLines) {
+            if ($line -match '^-+$') {
+                # La riga precedente era il titolo della sezione: inizia raccolta
+                $current = @{}
+                continue
             }
-            return $result
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                if ($null -ne $current) { $sections.Add($current); $current = $null }
+                continue
+            }
+            if ($null -ne $current -and $line -match '^(\S+)\s+(.+)$') {
+                $current[$Matches[1].Trim()] = $Matches[2].Trim()
+            }
         }
+        if ($null -ne $current) { $sections.Add($current) }
 
-        $hvLines  = & bcdedit /enum '{hypervisorsettings}' 2>$null
-        $curLines = & bcdedit /enum '{current}'           2>$null
-
-        $hvMap  = & $parseBcd $hvLines
-        $curMap = & $parseBcd $curLines
-
-        $bcdSettings = [PSCustomObject]@{
-            HypervisorSettings = $hvMap
-            BootCurrent        = $curMap
+        $bcdSettings = [ordered]@{}
+        foreach ($s in $sections) {
+            $id = if ($s.ContainsKey('identificatore')) { $s['identificatore'] }
+                  elseif ($s.ContainsKey('identifier'))  { $s['identifier'] }
+                  else { $null }
+            if ($null -ne $id) { $bcdSettings[$id] = $s }
         }
     } catch {}
     $hostWaitTime = $null
